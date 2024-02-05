@@ -22,6 +22,7 @@ from utils.mdl_mesh2tri import Mesh2Triangle
 from utils.mdl_sampler import RandomSampler
 
 def model2cloud_one(model_path:str,
+                    t_rm_abn_f:float=-1,
                     sample_mode:Literal["point_density", "point_spacing"]="point_density",
                     pt_param:int or float=10,
                     noise_sigma:float=-1,
@@ -30,8 +31,11 @@ def model2cloud_one(model_path:str,
     vs, es, fs = load_obj(model_path)
 
     # triangulation
-    mesh2tri = Mesh2Triangle(vs, fs)
+    # print(f"mesh_tris: {model_path}\n")
+    mesh2tri = Mesh2Triangle(vs, fs, rm_smallface=t_rm_abn_f)
     mesh_tris = mesh2tri.tris
+    # print(mesh_tris)
+    # print(vs, es, fs)
 
     # sampling each mesh.
     sampler = RandomSampler(mesh_tris, sample_mode=sample_mode, pt_param=pt_param)
@@ -65,6 +69,7 @@ def set_logger(cloud_dir_root:str, args_dict:dict):
     return logger
 
 def models2clouds(models_dir:str, clouds_dir:str=None,
+                  t_rm_abn_f:float=-1,
                   sample_mode:Literal["point_density", "point_spacing"]="point_density",
                   pt_param:int or float=10,
                   noise_sigma:float=-1):
@@ -72,6 +77,10 @@ def models2clouds(models_dir:str, clouds_dir:str=None,
     get corresponding clouds for multiple models.
     :param models_dir:  directory of saving models | model_path (with model_name.obj)
     :param clouds_dir:  directory of saving generated clouds
+    :param t_rm_abn_f:  Threshold to ReMove ABNormal Face.
+                        what is abnormal face?
+                            (1) whose vertices number <=2 or (2) whose MBR's min edge length <= this threshold.
+                        when set as -1, no face will be removed.
     :param sample_mode: "point_density" or "point_spacing"
     :param pt_param:    the corresponding point density or point spacing for determing the point number of sampling.
     :param noise_sigma: sigma value for added gaussian noise.
@@ -86,6 +95,7 @@ def models2clouds(models_dir:str, clouds_dir:str=None,
         pbar.set_description(f"{mi}")
 
         pts, tris = model2cloud_one(model_path,
+                                    t_rm_abn_f=t_rm_abn_f,
                                     sample_mode=sample_mode, pt_param=pt_param,
                                     noise_sigma=noise_sigma)
 
@@ -96,13 +106,18 @@ def models2clouds(models_dir:str, clouds_dir:str=None,
 
 def main(args):
     clouds_dir = os.path.join(args.clouds_dir, "clouds/")
-    if clouds_dir is not None:
+    if args.clouds_dir is not None:
+        if args.noise_sigma > 0:
+            clouds_dir = f"{clouds_dir}_noise={args.noise_sigma}"
+        if args.t_rm_abnormal_face > 0:
+            clouds_dir = f"{clouds_dir}_tabf={args.t_rm_abnormal_face}"
         create_folder(clouds_dir)
 
     logger = set_logger(cloud_dir_root=args.clouds_dir, args_dict=vars(args))
 
     models2clouds(args.models_dir,
                   clouds_dir,
+                  args.t_rm_abnormal_face,
                   args.sample_mode,
                   args.pt_param,
                   args.noise_sigma)
@@ -116,6 +131,10 @@ def parse_args():
     parser.add_argument("--clouds_dir", type=str, default=None,
                         help="the directory for saving generated clouds. "
                              "if no input is received, the clouds won't be saved.")
+    parser.add_argument("--t_rm_abnormal_face", type=float, default=-1,
+                        help="the threshold to remove abnormal face before triangulation:"
+                             "(1) whose vertices number <=2 or (2) whose MBR's min edge length <= this threshold."
+                             "if default (-1), no face will be removed.")
     parser.add_argument("--sample_mode", type=str, nargs="?",
                         default="point_density", const="point_density", choices=["point_density", "point_spacing"],
                         help="the sampling mode: whether the pt_param is point_density or point_spacing")

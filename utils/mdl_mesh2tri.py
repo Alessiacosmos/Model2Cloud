@@ -11,16 +11,18 @@ import numpy as np
 import triangle as tr
 
 from utils.mdl_io import load_obj
+from utils.mdl_utils import get_polygonMBR_min_edge
 
 
 class Mesh2Triangle:
     def __init__(self, meshes_v:np.ndarray or list,
-                 meshes_f:list=None):
+                 meshes_f:list=None, rm_smallface:float=-1):
         """
         :param meshes_v: vertices matrix. shape=[M,3]
                          M: number of vertex.
                          3: [x,y,z]
         :param meshes_f: face list. e.g., [0,1,2,3,4]
+        :param rm_smallface: whether remove the face who is very small and can be regarded as abnormal faces. -1 = won't remove; >0: remove based on the min_length_MBR; unit: m
         :return:
             self.tris:   a list of tris. len(self.tris) = len(meshes_f), the number of mesh faces
                          Each tri is a dictionary and includes vertices and triangles info.
@@ -28,7 +30,8 @@ class Mesh2Triangle:
                                "triangles": np.array([[v1_idx, v2_idx, v3_idx],...,[v1_idx, v2_idx, v3_idx]]),
                                [optional]"segments",......}
         """
-        self.meshes_v = self.sep_v_meshes(meshes_v, meshes_f)
+        meshes_v_sep = self.sep_v_meshes(meshes_v, meshes_f)
+        self.meshes_v = self.rm_abnormal_faces(meshes_v_sep, rm_smallface)
         self.meshes_e = self.get_edges(self.meshes_v)
         # self.meshes_f = meshes_f
 
@@ -43,6 +46,30 @@ class Mesh2Triangle:
             meshes_v = [meshes_v[f, :] for f in meshes_f]
 
         return meshes_v
+
+    def rm_abnormal_faces(self, meshes_v_sep, rm_smallface):
+        """
+        remove abnormal faces in the meshes.
+        abnormal faces:
+            1. which are not face actually (include <=2 vertices)
+            2. which have a very very small min_edge length for their MBRs, meaning that this face is very small and is errorly annotated.
+                e.g. the first faces in Altenbach/singles/DEBW_DEBWL0010000CitJ & DEBW_DEBWL0010000CisO: and the generated points' number of these faces are very very limited, lower than 10.
+        :param meshes_v_sep:      each face's vertices (has been separated by face information)
+        :param rm_smallface:      the threshold to remove the 2nd-type abnormal faces (the min_edge_len of a normal face's MBR)
+        :return:
+               meshes_v_clean:    cleaned meshes
+        """
+        meshes_v_clean = []
+
+        if len(meshes_v_sep)<=1: # only 1 face, which won't have problem.
+            return meshes_v_sep
+
+        for mesh_v in meshes_v_sep:
+            mesh_min_edge_len = get_polygonMBR_min_edge(mesh_v)
+            if mesh_min_edge_len >= rm_smallface:
+                meshes_v_clean.append(mesh_v)
+
+        return meshes_v_clean
 
     def get_edges(self, meshes_v) -> list:
         meshes_edges = []
@@ -118,10 +145,26 @@ class Mesh2Triangle:
 
 
 if __name__=="__main__":
-    model_path = r"../test_data/10444144_rfstruct.obj"
+    # DEBW_DEBWL0010000Cirl
+    # test rm_abnormal_face: DEBW_DEBWL0010000CitJ; DEBW_DEBWL0010000CisO DEBW_DEBWL0010000Civg DEBW_DEBWL0010000Citd (whose abnoraml face can be saved.)
+    model_path = "/home/gefeik/PhD-work/roofstructreDataset/codes_rf_Dataset/test_data/gml_objs/Altenbach/singles/DEBW_DEBWL0010000Civg.obj" # r"../test_data/10444144_rfstruct.obj"
 
     vs, es, fs = load_obj(model_path)
-    mesh2tri = Mesh2Triangle(vs, fs)
+    vs = vs - np.mean(vs, axis=0)
+    print(vs, fs)
+
+    #######
+    # visualize faces. to check whether the input is right
+    #######
+    # import matplotlib.pyplot as plt
+    # colors = ["black", "green", "yellow", "red"]
+    # plt.scatter(vs[:,0], vs[:,1], s=10, c="b")
+    # for fi, f in enumerate(fs):
+    #     plt.plot(vs[f,0], vs[f,1], c=colors[fi%len(colors)])
+    # plt.show()
+    # plt.close()
+
+    mesh2tri = Mesh2Triangle(vs, fs, rm_smallface=0.5)
     tris = mesh2tri.tris
     print(f"vs:\n{vs-np.min(vs, axis=0)}")
     print(f"es:\n{es}")
