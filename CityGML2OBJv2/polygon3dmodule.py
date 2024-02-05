@@ -29,7 +29,10 @@
 # THE SOFTWARE.
 
 import math
-import markup3dmodule
+try:
+    import markup3dmodule
+except:
+    from CityGML2OBJv2 import markup3dmodule as markup3dmodule
 from lxml import etree
 import copy
 import triangle

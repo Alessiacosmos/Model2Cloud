@@ -28,8 +28,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
-import markup3dmodule as m3dm
+try:
+    import markup3dmodule as m3dm
+except:
+    from CityGML2OBJv2 import markup3dmodule as m3dm
 
 from decimal import Decimal, getcontext
 import numpy as np
