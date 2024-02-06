@@ -184,6 +184,9 @@ def load_obj_multiblds(obj_path:str, save_single_obj:bool=True, **kwargs) -> dic
     rf_sep = {} # all roof info.
     for bi, (bld_k, bld_fs) in enumerate(faces_sep.items()):
         # if bi > 10: break
+        # if bld_k != "DEBW_DEBWL0010000Cipx":
+        #     continue
+        rf_sep[bld_k] = {}
 
         # judge whether the single obj has created or not; and whether refresh the existed single obj file.
         if save_single_obj:
@@ -195,9 +198,11 @@ def load_obj_multiblds(obj_path:str, save_single_obj:bool=True, **kwargs) -> dic
             save_obj_path = os.path.join(save_sobj_dir, f"{bld_k}.obj")
 
             if (not refresh) and (os.path.exists(save_obj_path)):
-                continue
+                vs, es, fs = load_obj(save_obj_path)
+                rf_sep[bld_k]["vertices"] = vs
+                rf_sep[bld_k]["faces"] = fs
 
-        rf_sep[bld_k] = {}
+                continue
 
         #########
         # get the vertices information for this building
@@ -224,23 +229,50 @@ def load_obj_multiblds(obj_path:str, save_single_obj:bool=True, **kwargs) -> dic
         # condition 1: bld_f_nz_h[:,1]>bld_wallf_hp25  ===>  in the left surfaces, select them with higher z-value.
         bld_rfs = np.asarray(bld_fs)[(np.abs(bld_f_nz_h[:,0])!=0) & (bld_f_nz_h[:,1]>bld_wallf_hp25)].tolist()
         # 4. get roof surface vertices:
-        bld_rvs = bld_vs.loc[[_ for rf in bld_rfs for _ in rf]]
+        bld_rvs = bld_vs.loc[np.unique([_ for rf in bld_rfs for _ in rf])]
 
         #########
         # 5. re-ogranize faces idx to start from 0
         #########
-        bld_rfs_idmin = bld_rvs.index.min()
-        bld_rfs = [[_ - bld_rfs_idmin for _ in rf] for rf in bld_rfs]
+        # re-organize bld_rvs with new idx from 0 to N_vs
+        # the new dataframe includes 4 columns: idx_new ([1, N_vs]), x, y, z
+        # and the index of this dataframe is still the unchanged faces idx not from 0.
+        bld_rvs_ridx = bld_rvs.rename_axis('idx_o').reset_index()
+        bld_rvs_ridx = bld_rvs_ridx.rename_axis('idx_new').reset_index().set_index('idx_o')
+        bld_rvs_ridx["idx_new"] += 1 # [0,N_vs)->[1,N_vs]
+        bld_rfs = [bld_rvs_ridx.loc[rf, "idx_new"].values.tolist() for rf in bld_rfs]
         # save them to a dict for the final output
         rf_sep[bld_k]["vertices"] = bld_rvs.values # np.ndarray, shape=[n,3]
         rf_sep[bld_k]["faces"] = bld_rfs           # list
 
         if save_single_obj:
             save_obj(save_obj_path, rf_sep[bld_k]["vertices"], rf_sep[bld_k]["faces"])
-            print("save refresh")
+            # print("save refresh")
+
+        # print("bld_vs: \n", bld_vs)
+        # print("bld_f_nz_h:\n", bld_f_nz_h)
+        # print("fin vs: \n", rf_sep[bld_k]["vertices"])
+
     return rf_sep
 
+def cvt_citygml2obj(gml_path:str, save_dir:str)->str:
+    """
+    use CITYGML2OBJs_v2 to achieve the conversion from citygml file to obj file.
+    repo. link: https://github.com/tum-gis/CityGML2OBJv2/
+    And we modified it as a module.
+    :param gml_path: gml path with file_basename
+    :param save_dir: the dir saving converted .obj file.
+    :return:
+    """
+    # set necessary parameters for citygml2obj module
+    citygml2obj.ARGS['directory'] = gml_path
+    citygml2obj.ARGS['results'] = save_dir
 
+    obj_dir, gml_filename = citygml2obj.main()
+
+    save_path = os.path.join(obj_dir, f"{gml_filename}.obj")
+
+    return save_path
 
 
 
