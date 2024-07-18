@@ -42,7 +42,7 @@ def load_las_cloud(filepath:str)->np.ndarray:
 
     return xyz_ij
 
-def load_txt_cloud(filepath:str)->np.ndarray:
+def load_txt_cloud(filepath:str, delimiter:str=",")->np.ndarray:
     """
     load point cloud data from .txt file
     :param filepathes:
@@ -52,7 +52,7 @@ def load_txt_cloud(filepath:str)->np.ndarray:
             n: the number of points in a plane
             4: xyz[plane_id]
     """
-    cloud = np.loadtxt(filepath, delimiter=",")
+    cloud = np.loadtxt(filepath, delimiter=delimiter)
     return cloud
 
 
@@ -219,7 +219,7 @@ def load_obj_multiblds(obj_path:str, save_single_obj:bool=True, **kwargs) -> dic
             bld_f_nz_h.append([fn[2], np.mean(vs_pd.iloc[bld_f, 2])]) # [normal-z value, mean height]
 
         # 2. remove wall's and ground faces.
-        #    wall: normal-z = 1. ground: height (z-value) is low.
+        #    wall: normal-z = 0. ground: height (z-value) is low.
         #    remove wall's faces, roof surfaces are the left surfaces whose mean heights are higher.
         bld_f_nz_h = np.asarray(bld_f_nz_h)
         bld_wallf_hp25 = np.percentile(bld_f_nz_h[np.abs(bld_f_nz_h[:,0])==0, 1], 25) # 25% percentile as the wall's mean height to seperate roof and ground
