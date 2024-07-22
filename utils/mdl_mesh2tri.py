@@ -6,6 +6,7 @@
 @Description    : as below
 a surface (mesh) to triangles
 """
+import warnings
 
 import numpy as np
 import triangle as tr
@@ -34,6 +35,8 @@ class Mesh2Triangle:
         self.meshes_v = self.rm_abnormal_faces(meshes_v_sep, rm_smallface)
         self.meshes_e = self.get_edges(self.meshes_v)
         # self.meshes_f = meshes_f
+
+        self.add_v_tag = False # tag whether additional vertices are added (if True, implict the wrong annotation and this roof is better to be passed.)
 
         self.tris = self.crt_constrained_delaunay_meshes()
 
@@ -104,6 +107,14 @@ class Mesh2Triangle:
 
             tri_i = self.crt_constrained_delaunay_1mesh(mesh_vertices=mesh_v,
                                                         mesh_edges=mesh_es)
+
+            if len(tri_i["vertices"]) != len(mesh_v):
+                # the number of vertices might not equal to the input vertices' number, because of the wrong annotation. In this case, raise an warning.
+                warnings.warn(f"Additional vertices are added when triangulation: "
+                              f"original: {len(mesh_v)}, new: {len(tri_i['vertices'])}. "
+                              f"The input polygon exists errors.")
+                self.add_v_tag = True
+
             tri_i["vertices"] = mesh_v
             tris.append(tri_i)
 

@@ -22,6 +22,14 @@ def set_logger(cloud_dir_root:str, args_dict:dict):
     ######################
     logger = logging.getLogger("model2cloud_citygml")
     logger.setLevel(logging.INFO)
+
+    # check whether another handler is created, if yes, close it.
+    if logger.handlers:
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                logger.removeHandler(handler)
+                handler.close()
+
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler = logging.FileHandler(os.path.join(cloud_dir_root, f'm2c_params_{os.path.basename(cloud_dir_root)}.txt'))
     file_handler.setLevel(logging.INFO)
@@ -48,20 +56,29 @@ def models2clouds_citygml(models_dir:str, clouds_dir:str=None,
     obj_single_savedir = os.path.join(obj_dir, "singles")
     create_folder(obj_single_savedir)
 
-    rf_sep = load_obj_multiblds(save_obj_multi_path, save_single_obj=True, save_dir=obj_single_savedir,
-                                refresh_savedobj=False)
+    # 3. create clouds for the area WITH buildings.
+    if os.path.exists(save_obj_multi_path): # if the .gml file is not empty and buildings are extracted.
+        rf_sep = load_obj_multiblds(save_obj_multi_path, save_single_obj=True, save_dir=obj_single_savedir,
+                                    refresh_savedobj=False)
 
-    # for rf_key, rf_value in rf_sep.items():
-    #     rf_vs = rf_value["vertices"]
-    #     rf_fs = rf_value["faces"]
+        # for rf_key, rf_value in rf_sep.items():
+        #     rf_vs = rf_value["vertices"]
+        #     rf_fs = rf_value["faces"]
 
 
-    models2clouds(obj_single_savedir,
-                  clouds_dir,
-                  t_rm_abnormal_face,
-                  sample_mode,
-                  pt_param,
-                  noise_sigma)
+        models2clouds(obj_single_savedir,
+                      clouds_dir,
+                      t_rm_abnormal_face,
+                      sample_mode,
+                      pt_param,
+                      noise_sigma)
+    else:
+        # the input .gml file might be empty, in this cases, don't run the following codes and pass this area
+        area_name = os.path.dirname(save_obj_multi_path).split('/')[-1]
+        print(f"the area {area_name} is empty.")
+        empty_area_record = os.path.join(os.path.dirname(obj_dir), "empty_area.txt")
+        with open(empty_area_record, "a+") as empty_f:
+            empty_f.writelines(f"{area_name}\n")
 
 
 def main(args):
@@ -83,6 +100,9 @@ def main(args):
                           args.sample_mode,
                           args.pt_param,
                           args.noise_sigma)
+
+    return clouds_dir
+
 
 def parse_args():
     """PARAMETERS"""

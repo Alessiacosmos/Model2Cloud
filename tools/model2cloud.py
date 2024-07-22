@@ -37,6 +37,12 @@ def model2cloud_one(model_path:str,
     # print(mesh_tris)
     # print(vs, es, fs)
 
+    # check following unexpected situations:
+    # 1. check whether all planes are very small and then no planes need to be created.
+    # 2. check whether additional vertices are added (if True, implict the wrong annotation and this roof is better to be passed.)
+    if (len(mesh_tris)==0) or (mesh2tri.add_v_tag == True):
+        return np.asarray([]), mesh_tris
+
     # sampling each mesh.
     sampler = RandomSampler(mesh_tris, sample_mode=sample_mode, pt_param=pt_param)
     pts_withsegid = sampler.sampling_meshes_PD()
@@ -92,7 +98,7 @@ def models2clouds(models_dir:str, clouds_dir:str=None,
         models_pathes = glob.glob(os.path.join(models_dir, "*.obj"))
 
     for mi, model_path in (pbar := tqdm(enumerate(models_pathes), total=len(models_pathes), smoothing=0.9)):
-        pbar.set_description(f"{mi}")
+        pbar.set_description(f"{mi}-{os.path.basename(model_path)}")
 
         pts, tris = model2cloud_one(model_path,
                                     t_rm_abn_f=t_rm_abn_f,
@@ -102,7 +108,14 @@ def models2clouds(models_dir:str, clouds_dir:str=None,
         # save pts
         if clouds_dir is not None:
             savename = os.path.join(clouds_dir, os.path.basename(model_path).replace(".obj", ".txt"))
-            np.savetxt(savename, pts, fmt="%.6f,%.6f,%.6f,%d")
+            if len(pts) > 0:
+                np.savetxt(savename, pts, fmt="%.6f,%.6f,%.6f,%d")
+            else:
+                # record ungenerated roofs
+                filename_ungen_roofs = os.path.join(os.path.dirname(clouds_dir), "ungenerated_roofs.txt")
+                with open(filename_ungen_roofs, "a+") as ungen_f:
+                    ungen_f.writelines(f"{savename}\n")
+
 
 def main(args):
     clouds_dir = os.path.join(args.clouds_dir, "clouds/")
