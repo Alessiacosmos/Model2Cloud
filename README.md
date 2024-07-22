@@ -32,7 +32,7 @@ optional arguments:
 #### 1.2 Generate from .citygml file
 use `tools/model2cloud_citygml.py` to achieve the generation of point clouds for a series of 3D buildings in a region.
 ```shell
-$ python3 -m tools.model2cloud --models_dir test_data/gml_files/Altenbach --clouds_dir test_data/gml_objs/Altenbach --sample_mode point_density --pt_param 20 --noise_sigma 0.02
+$ python3 -m tools.model2cloud_citygml --models_dir test_data/gml_files/Altenbach --clouds_dir test_data/gml_objs/Altenbach --t_rm_abnormal_face 0.3 --sample_mode point_density --pt_param 20 --noise_sigma 0.02
 ```
 parameters are the same as [1.1 parameters](#params_1-1)
 
