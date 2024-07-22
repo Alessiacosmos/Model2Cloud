@@ -35,7 +35,7 @@ class RandomSampler:
         """
         sample points from a mesh.
         ref code: pyntcloud.samplers.RandomMeshSampler.compute()
-        the sampling method refers new algorithm from Prinston (to create more uniform result)
+        the sampling method refers new algorithm from Princeton (to create more uniform result)
         algorithm: P = (1 - sqrt(r1)) * A + sqrt(r1) * (1 - r2) * B + sqrt(r1) * r2 * C，
         令s,t在区间[0,1]之间取值，随机点Q的值依靠以下算法获得：
             a ← 1−√t;
